@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectToDatabase from "@/app/lib/mongodb";
 import Cart from "@/app/models/cart";
+import { applyCorsHeaders } from "@/app/api/_utils/cors";
 
 export async function POST(req) {
   try {
@@ -9,7 +10,9 @@ export async function POST(req) {
 
     const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return NextResponse.json({ message: "Cart not found" }, { status: 404 });
+      return applyCorsHeaders(
+        NextResponse.json({ message: "Cart not found" }, { status: 404 })
+      );
     }
 
     const itemIndex = cart.items.findIndex(
@@ -19,7 +22,9 @@ export async function POST(req) {
     );
 
     if (itemIndex === -1) {
-      return NextResponse.json({ message: "Item not in cart" }, { status: 404 });
+      return applyCorsHeaders(
+        NextResponse.json({ message: "Item not in cart" }, { status: 404 })
+      );
     }
 
     const item = cart.items[itemIndex];
@@ -32,9 +37,19 @@ export async function POST(req) {
 
     await cart.save();
 
-    return NextResponse.json({ message: "Cart updated successfully", status: 0 }, { status: 200 });
+    return applyCorsHeaders(
+      NextResponse.json({ message: "Cart updated successfully", status: 0 }, { status: 200 })
+    );
+
   } catch (error) {
     console.error("Decrement Error:", error);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    return applyCorsHeaders(
+      NextResponse.json({ message: "Server error" }, { status: 500 })
+    );
   }
+}
+
+// ✅ CORS preflight support
+export function OPTIONS() {
+  return applyCorsHeaders(NextResponse.json({}, { status: 200 }));
 }

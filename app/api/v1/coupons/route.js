@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectToDatabase from "@/app/lib/mongodb";
 import Coupon from "@/app/models/coupons";
 import { verifyAuth } from "@/app/lib/auth";
+import { applyCorsHeaders } from "@/app/api/_utils/cors";
 
 export async function GET() {
   try {
@@ -14,10 +15,14 @@ export async function GET() {
       $expr: { $lt: ["$usedCount", "$usageLimit"] },
     });
 
-    return NextResponse.json({ coupons, status: 0 }, { status: 200 });
+    return applyCorsHeaders(
+      NextResponse.json({ coupons, status: 0 }, { status: 200 })
+    );
   } catch (error) {
     console.error("Get Coupons Error:", error);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    return applyCorsHeaders(
+      NextResponse.json({ message: "Server error" }, { status: 500 })
+    );
   }
 }
 
@@ -27,18 +32,19 @@ export async function POST(req) {
 
     // Verify JWT Token
     const decoded = verifyAuth(req);
-    if (decoded.status) return decoded; // Return error response if token is invalid
+    if (decoded.status) return applyCorsHeaders(decoded); // Token error
 
-    // Check if user is an admin
+    // Check admin
     if (decoded.role !== "admin") {
-      return NextResponse.json(
-        { message: "Unauthorized: Admin access required" },
-        { status: 403 }
+      return applyCorsHeaders(
+        NextResponse.json(
+          { message: "Unauthorized: Admin access required" },
+          { status: 403 }
+        )
       );
     }
 
     const body = await req.json();
-
     const {
       code,
       discountType,
@@ -51,20 +57,16 @@ export async function POST(req) {
       usageLimit = 1,
     } = body;
 
-    // Basic validations
     if (!code || !discountType || !discountValue || !expiresAt) {
-      return NextResponse.json(
-        { message: "Missing required fields." },
-        { status: 400 }
+      return applyCorsHeaders(
+        NextResponse.json({ message: "Missing required fields." }, { status: 400 })
       );
     }
 
-    // Check if coupon code already exists
-    const existing = await Coupon.findOne({ code });
+    const existing = await Coupon.findOne({ code: code.toUpperCase() });
     if (existing) {
-      return NextResponse.json(
-        { message: "Coupon code already exists." },
-        { status: 409 }
+      return applyCorsHeaders(
+        NextResponse.json({ message: "Coupon code already exists." }, { status: 409 })
       );
     }
 
@@ -82,12 +84,17 @@ export async function POST(req) {
 
     await newCoupon.save();
 
-    return NextResponse.json(
-      { message: "Coupon created successfully.", status:0 },
-      { status: 201 }
+    return applyCorsHeaders(
+      NextResponse.json({ message: "Coupon created successfully.", status: 0 }, { status: 201 })
     );
   } catch (error) {
     console.error("Create Coupon Error:", error);
-    return NextResponse.json({ message: "Server error." }, { status: 500 });
+    return applyCorsHeaders(
+      NextResponse.json({ message: "Server error." }, { status: 500 })
+    );
   }
+}
+
+export function OPTIONS() {
+  return applyCorsHeaders(NextResponse.json({}, { status: 200 }));
 }

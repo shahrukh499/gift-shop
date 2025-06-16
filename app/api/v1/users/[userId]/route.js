@@ -2,27 +2,35 @@ import { NextResponse } from "next/server";
 import { verifyAuth } from "@/app/lib/auth";
 import connectDB from "@/app/lib/mongodb";
 import User from "@/app/models/users";
+import { applyCorsHeaders } from "@/app/api/_utils/cors";
 
 export async function GET(req, { params }) {
   try {
     await connectDB();
 
-    // Verify JWT Token
-    const authResult = verifyAuth(req);
-    if (authResult instanceof NextResponse) return authResult;
+    const decoded = verifyAuth(req);
+    if (decoded instanceof NextResponse) return applyCorsHeaders(decoded);
 
-    const { userId } = await params;
+    const { userId } = params;
 
-    // Find user by ID and exclude password
     const user = await User.findById(userId).select("-password");
     if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return applyCorsHeaders(
+        NextResponse.json({ message: "User not found" }, { status: 404 })
+      );
     }
 
-    return NextResponse.json({ user }, { status: 200 });
-
+    return applyCorsHeaders(
+      NextResponse.json({ user, status: 0 }, { status: 200 })
+    );
   } catch (error) {
-    /* console.error("Get User Error:", error); */
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    console.error("Get User Error:", error);
+    return applyCorsHeaders(
+      NextResponse.json({ message: "Server error" }, { status: 500 })
+    );
   }
+}
+
+export function OPTIONS() {
+  return applyCorsHeaders(NextResponse.json({}, { status: 200 }));
 }
